@@ -20,10 +20,30 @@ def load_logo(dir_logo):
 def load_data():
 
   # REALIZANDO A LEITURA DOS DADOS
-
   df = pd.read_excel("/content/gdrive/MyDrive/FOOTPRINT/footprint_agencias.xlsx")
 
   return df
+
+@st.cache_data
+def download_data(df):
+
+  return df.to_csv(index=None).encode('latin1')
+
+def download_map(mapobj):
+
+  # INICIALIZANDO O VALIDATOR
+  validator = False
+
+  try:
+    mapobj.save("MAPA_FOOTPRINT.html")
+
+    validator = True
+
+    if validator:
+
+      st.success('HTML salvo com sucesso', icon="✅")
+  except Exception as ex:
+    print(ex)
 
 def load_map():
 
@@ -133,6 +153,18 @@ def main():
     # INCLUINDO NO APP
     st.markdown("### Parque de agências")
     st_data = st_folium(mapobj, width=1000, height=500)
+
+    st.download_button(
+    label="Download dados (csv)",
+    data=download_data(df_footprint),
+    file_name='FOOTPRINT_DADOS.csv',
+    mime='text/csv',
+    )
+
+    st.button(
+        label="Download mapa",
+        on_click=download_map(mapobj)
+    )
 
   else:
       st.markdown("### Feature em desenvolvimento")
