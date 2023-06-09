@@ -4,17 +4,47 @@ from json import loads
 import pandas as pd
 import streamlit as st
 import folium
+import validators
 from streamlit_folium import st_folium
 from streamlit_custom_notification_box import custom_notification_box
 from streamlit_extras.app_logo import add_logo
 from streamlit_extras.dataframe_explorer import dataframe_explorer
 
-def load_logo(dir_logo):
+def add_logo(logo_url: str, height: int = 120):
 
-  try:
-    add_logo(dir_logo)
-  except Exception as ex:
-    print(ex)
+    """
+
+      FUNÇÃO CUJO OBJETIVO É ADICIONAR UM LOGO NO SIDEBAR
+      DO APP STREAMLIT.
+
+      RECEBE UMA IMAGEM EM:
+        URL DA WEB
+        PATH DA MÁQUINA
+
+      # Arguments
+        logo_url             - Required: Local onde está a imagem (String)
+        height               - Optional: Altura da imagem (Integer)
+
+    """
+
+    if validators.url(logo_url) is True:
+        logo = f"url({logo_url})"
+    else:
+        logo = f"url(data:image/png;base64,{base64.b64encode(Path(logo_url).read_bytes()).decode()})"
+
+    st.markdown(
+        f"""
+        <style>
+            [data-testid="stSidebarNav"] {{
+                background-image: {logo};
+                background-repeat: no-repeat;
+                padding-top: {height - 40}px;
+                background-position: 20px 20px;
+            }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
 @st.cache_data
 def load_data():
@@ -41,7 +71,9 @@ def download_map(mapobj):
 
     if validator:
 
-      st.success('HTML salvo com sucesso', icon="✅")
+      pass
+
+      # st.success('HTML salvo com sucesso', icon="✅")
   except Exception as ex:
     print(ex)
 
@@ -61,7 +93,7 @@ def load_map():
 
     return mapobj
 
-  def add_markers(mapobj, data=None):
+  def add_markers(mapobj, data=None, circle_radius=0):
 
     folium.Marker(
       location=[-23.536791847273886, -46.7784728049161],
@@ -80,6 +112,12 @@ def load_map():
         popup="AV PAULISTA II",
         icon=folium.Icon(color="orange", icon="glyphicon glyphicon-briefcase"),
     ).add_to(mapobj)
+
+    if circle_radius > 0:
+
+      # MULTIPLICA O RAIO POR 1000, PARA REALIZAR A CONVERSÃO DE M PARA KM
+      folium.Circle(radius=circle_radius*1000, 
+                    location=[[-23.536791847273886, -46.7784728049161]]).add_to(mapobj)
 
     return mapobj
 
@@ -100,7 +138,7 @@ def main():
 
   # CONFIGURANDO O APP
   st.set_page_config(page_title="FOOTPRINT - GESTÃO DO PARQUE DE AGÊNCIAS", 
-                     page_icon="🎈", 
+                     page_icon=":world-map:", 
                      layout="wide", 
                      menu_items={
                                 'Get Help': None,
@@ -113,7 +151,7 @@ def main():
   st.title("APP - FOOTPRINT - GESTÃO DO PARQUE DE AGÊNCIAS")
 
   # ADICIONANDO LOGO
-  load_logo(dir_logo = "/content/gdrive/MyDrive/FOOTPRINT/logo_footprint.png")
+  add_logo(logo_url="http://placekitten.com/120/120")
 
   with st.sidebar:
 
@@ -152,19 +190,38 @@ def main():
 
     # INCLUINDO NO APP
     st.markdown("### Parque de agências")
+    st_col1, st_col2 = st.columns(2)
+    with st_col1: 
+      result_view_sombreamento = st.checkbox("Visualizar sombreamento", 
+                                              value=False, 
+                                              key=None, 
+                                              help=None, 
+                                              on_change=None, 
+                                              disabled=False, 
+                                              label_visibility="visible")
+    if result_view_sombreamento:
+      with st_col2: 
+        raio_sombreamento = st.slider('Raio desejado (em km):', 0, 1000, 5)
+
     st_data = st_folium(mapobj, width=1000, height=500)
 
-    st.download_button(
-    label="Download dados (csv)",
-    data=download_data(df_footprint),
-    file_name='FOOTPRINT_DADOS.csv',
-    mime='text/csv',
-    )
+    st_col1, st_col2 = st.columns(2)
 
-    st.button(
-        label="Download mapa",
-        on_click=download_map(mapobj)
-    )
+    with st_col1:
+
+      st.download_button(
+      label="Download dados (csv)",
+      data=download_data(df_footprint),
+      file_name='FOOTPRINT_DADOS.csv',
+      mime='text/csv',
+      )
+
+    with st_col2:
+
+      st.button(
+          label="Download mapa",
+          on_click=download_map(mapobj)
+      )
 
   else:
       st.markdown("### Feature em desenvolvimento")
