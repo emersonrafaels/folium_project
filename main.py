@@ -116,6 +116,7 @@ def convert_df_html(row_df,
         border:1px solid #b3adad;
         border-collapse:collapse;
         padding:5px;
+        font-family: inherit;
       }
       table th {
         border:1px solid #b3adad;
@@ -156,16 +157,20 @@ def convert_df_html(row_df,
 
   return html
 
-def load_map(data=None, circle_radius=0):
+def load_map(data=None, 
+             circle_radius=0, 
+             validator_add_layer=False):
 
-  def add_layers_control(mapobj, validator_add_layer=True):
+  def add_layers_control(mapobj, validator_add_layer=False):
 
     if validator_add_layer:
 
+      st.text("ENTROU")
+
       # ADICIONANDO OS LAYERS
-      folium.TileLayer(attr="openstreetmap").add_to(mapobj)
-      #folium.TileLayer(attr="mapquestopen").add_to(mapobj)
-      #folium.TileLayer(attr="cartodbpositron").add_to(mapobj)
+      folium.TileLayer("Stamen Terrain").add_to(mapobj)
+      folium.TileLayer("Stamen Toner").add_to(mapobj)
+      folium.TileLayer("Cartodb dark_matter").add_to(mapobj)
 
       # ADICIONANDO LAYER CONTROL
       folium.LayerControl().add_to(mapobj)
@@ -220,7 +225,7 @@ def load_map(data=None, circle_radius=0):
 
   # ADICIONANDO LAYERS
   footprint_map = add_layers_control(mapobj=footprint_map, 
-                                     validator_add_layer=True)
+                                     validator_add_layer=validator_add_layer)
 
   # ADICIONANDO MAKERS
   footprint_map = add_markers(mapobj=footprint_map, 
@@ -335,7 +340,8 @@ def main():
     
     # CRIANDO MAPA
     mapobj = load_map(data=selected_df, 
-                      circle_radius=raio_sombreamento)
+                      circle_radius=raio_sombreamento, 
+                      validator_add_layer=True)
 
     # INCLUINDO O MAPA NO APP
     st_data = st_folium(mapobj, width=1000, height=500)
