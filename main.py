@@ -196,11 +196,14 @@ def load_map(data=None, circle_radius=0):
         popup = folium.Popup(folium.Html(html, script=True), max_width=500)
 
         if str(status).upper() == "VERMELHA":
-          current_icon = folium.Icon(color='red', icon="glyphicon glyphicon-briefcase")
+          current_icon = folium.features.CustomIcon(icon_image="/content/gdrive/MyDrive/FOOTPRINT/itau_vermelho.png", 
+                                                    icon_size=(16, 16))
         elif str(status).upper() == "AMARELA":
-          current_icon = folium.Icon(color='orange', icon="glyphicon glyphicon-briefcase")
+          current_icon = folium.features.CustomIcon(icon_image="/content/gdrive/MyDrive/FOOTPRINT/itau_amarelo.png", 
+                                                    icon_size=(16, 16))
         else:
-          current_icon = folium.Icon(color="green", icon="glyphicon glyphicon-briefcase")
+          current_icon = folium.features.CustomIcon(icon_image="/content/gdrive/MyDrive/FOOTPRINT/itau_verde.png", 
+                                                    icon_size=(16, 16))
 
         folium.Marker(
           location=[lat, long],
