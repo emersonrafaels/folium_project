@@ -12,6 +12,7 @@ from streamlit_folium import st_folium
 from streamlit_custom_notification_box import custom_notification_box
 from streamlit_extras.app_logo import add_logo
 from st_aggrid import GridOptionsBuilder, AgGrid, GridUpdateMode, DataReturnMode
+from streamlit_extras.dataframe_explorer import dataframe_explorer
 
 def add_logo(logo_url: str, height: int = 120):
 
@@ -69,10 +70,8 @@ def download_data(df):
     validator = True
 
     if validator:
+      st.success('Dados salvos com sucesso', icon="✅")
 
-      pass
-
-      # st.success('Dados salvos com sucesso', icon="✅")
   except Exception as ex:
     print(ex)
 
@@ -87,10 +86,8 @@ def download_map(mapobj):
     validator = True
 
     if validator:
+      st.success('HTML salvo com sucesso', icon="✅")
 
-      pass
-
-      # st.success('HTML salvo com sucesso', icon="✅")
   except Exception as ex:
     print(ex)
 
@@ -165,8 +162,6 @@ def load_map(data=None,
 
     if validator_add_layer:
 
-      st.text("ENTROU")
-
       # ADICIONANDO OS LAYERS
       folium.TileLayer("Stamen Terrain").add_to(mapobj)
       folium.TileLayer("Stamen Toner").add_to(mapobj)
@@ -238,10 +233,17 @@ def convert_dataframe_to_aggrid(data,
                                 validator_all_rows_selected=True):
 
   gb = GridOptionsBuilder.from_dataframe(data)
+  gb.configure_default_column(enablePivot=False, 
+                              enableValue=True, 
+                              enableRowGroup=True)
   gb.configure_pagination(paginationAutoPageSize=True, 
                           paginationPageSize=5) #Add pagination
-  gb.configure_side_bar(filters_panel=True, columns_panel=True, defaultToolPanel="") #Add a sidebar
-  gb.configure_selection('multiple', use_checkbox=True, groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
+  gb.configure_side_bar(filters_panel=True, 
+                        columns_panel=True, 
+                        defaultToolPanel="") #Add a sidebar
+  gb.configure_selection('multiple', 
+                         use_checkbox=True,
+                         groupSelectsChildren="Group checkbox select children") #Enable multi-row selection
   
   # VALIDANDO SE É DESEJADO QUE TODAS AS LINHAS INICIEM SELECIONADAS
   if validator_all_rows_selected:
@@ -252,17 +254,45 @@ def convert_dataframe_to_aggrid(data,
   grid_response = AgGrid(
       data,
       gridOptions=gridOptions,
-      data_return_mode='AS_INPUT', 
-      update_mode='MODEL_CHANGED', 
+      data_return_mode=DataReturnMode.FILTERED_AND_SORTED, 
+      update_mode=GridUpdateMode.VALUE_CHANGED | GridUpdateMode.SELECTION_CHANGED | GridUpdateMode.FILTERING_CHANGED | GridUpdateMode.SORTING_CHANGED, 
       fit_columns_on_grid_load=False,
-      theme='streamlit',
+      theme='light',
       enable_enterprise_modules=True,
       height=350, 
       width='100%',
-      reload_data=False
-  )
+      reload_data=False, 
+      header_checkbox_selection_filtered_only=True, 
+      use_checkbox=True)
 
   return grid_response
+
+def get_indicators_before_versus_after(df1, 
+                                       df2, 
+                                       column_on="CÓDIGO AG", 
+                                       name_column_indicator="CRUZAMENTO"):
+
+  # REALIZANDO O JOIN ENTRE OS DATAFRAMES
+  df_join = pd.merge(df1, 
+                     df2, 
+                     on=column_on, 
+                     how="inner", 
+                     suffixes=("_antes", "_depois"))
+  
+  return df_join
+
+def filter_columns_multiselect(colunas_desejadas, df_columns):
+
+  colunas_desejadas_antes_depois = []
+
+  for column in colunas_desejadas:
+    colunas_desejadas_antes_depois.append(str(column))
+    colunas_desejadas_antes_depois.append("{}{}".format(str(column), "_antes"))
+    colunas_desejadas_antes_depois.append("{}{}".format(str(column), "_depois"))
+
+  colunas_desejadas_filter = list(filter(lambda x: x in df_columns, 
+                                        colunas_desejadas_antes_depois))
+  return colunas_desejadas_filter
 
 def main():
 
@@ -307,6 +337,7 @@ def main():
 
     # CARREGANDO DATAFRAME
     df_footprint = load_data()
+    df_footprint = df_footprint.append(df_footprint)
 
     # INCLUINDO O DATAFRAME EM TELA
     st.markdown("### Autosserviço - Dados do footprint")
@@ -317,6 +348,8 @@ def main():
 
     if not selected_df.empty:
 
+      st.text(selected_df)
+      st.dataframe(selected_df)        
       selected_df = selected_df[df_footprint.columns]
     
     # INCLUINDO NO APP
@@ -349,19 +382,19 @@ def main():
     st_col1, st_col2 = st.columns(2)
 
     with st_col1:
-
-      st.button(
+      st.download_button(
       label="Download dados (excel)",
-      on_click=download_data, 
-      args=(df_footprint,),
+      data=df_footprint, 
+      file_name="FOOTPRINT_DATA.xlsx",
+      mime="application/vnd.ms-excel"
       )
 
     with st_col2:
-
-      st.button(
+      st.download_button(
           label="Download mapa",
-          on_click=download_map,
-          args=(mapobj,)
+          data=mapobj,
+          file_name="FOOTPRINT.html"
+          mime="text/html"
       )
 
   elif selected_estudo_desejado == "Encerramento":
@@ -390,7 +423,47 @@ def main():
                                        type=["csv", "xlsx"], 
                                        help="O arquivo deve conter as agências selecionadas, caso contrário, não será possível realizar a comparação")
       if uploaded_file is not None:
-        st.sucess("UPLOAD REALIZADO COM SUCESSO")
+        st.success("UPLOAD REALIZADO COM SUCESSO")
+
+        # INICIALIZANDO O DATAFRAME QUE RECEBERÁ O RESULTADO
+        df_upload = pd.DataFrame()
+
+        # COM ARQUIVO INSERIDO, OBTENDO O TIPO DE ARQUIVO
+        print("TIPO DO ARQUIVO: {}".format(uploaded_file.type))
+
+        st.markdown("### Dados carregados")
+        if type in ["csv"]:
+          df_upload = pd.read_csv(uploaded_file)
+        else:
+          df_upload = pd.read_excel(uploaded_file)
+
+        st.dataframe(df_upload)
+
+        # REALIZANDO O JOIN ENTRE OS DADOS
+        df_join_df1_df2 = get_indicators_before_versus_after(df1=selected_df_encerramento, 
+                                                             df2=df_upload)
+        st.markdown("### Comparando as agências")
+
+        multiselect_columns = st.multiselect(label="Selecione as colunas desejadas para o estudo de encerramento", 
+                                            options=selected_df_encerramento.columns, 
+                                            default=None, 
+                                            key=None, 
+                                            help="O filtro de colunas será aplicado nos dados abaixo", 
+                                            on_change=None, 
+                                            args=None, 
+                                            kwargs=None, 
+                                            disabled=False, 
+                                            label_visibility="visible")
+        
+        if multiselect_columns:
+          multiselect_columns_result = filter_columns_multiselect(colunas_desejadas=multiselect_columns, 
+                                                                  df_columns=df_join_df1_df2.columns)
+          
+          # FILTRANDO AS COLUNAS DESEJADAS NO DATAFRAME DE CRUZAMENTO
+          df_join_df1_df2 = df_join_df1_df2[multiselect_columns_result]
+
+        df_join_df1_df2_explorer = dataframe_explorer(df_join_df1_df2, case=False)
+        st.dataframe(df_join_df1_df2_explorer, use_container_width=True)
 
   else:
       st.markdown("### Feature em desenvolvimento")
